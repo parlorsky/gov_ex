@@ -1,160 +1,133 @@
 # Организация Pandas DataFrame и организация индексации для DataFrame и Series. Операция GroupBy в Pandas DataFrame и реализация в ней подхода «разбиение, применение и объединение».
 
-## TL;DR
-**Pandas Series** — одномерный массив с **именованным индексом** (любого типа: int, str, datetime, MultiIndex). **DataFrame** — двумерный: набор `Series` (столбцов) с общим индексом строк и **индексом столбцов**. Внутри — массивы NumPy (по столбцам, в `BlockManager`/`ArrayManager`). **Индексация**: позиционная `.iloc`, по меткам `.loc`, булева, fancy. **GroupBy** реализует парадигму **split–apply–combine**: разбить по ключу, применить функцию (агрегацию/трансформацию/фильтрацию) к каждой группе, объединить. Ключевые методы: `agg`, `transform`, `apply`, `filter`. Эффективная реализация — векторизованные операции внутри групп.
+## Series
+Одномерный массив + **именованный индекс** (любого типа: int, str, datetime, MultiIndex). Главное отличие от numpy: операции выравниваются **по меткам индекса**, а не по позиции.
 
-## Развёрнуто
-
-### Series
 ```python
-import pandas as pd
-s = pd.Series([10, 20, 30], index=['a', 'b', 'c'], name='score')
+s = pd.Series([10, 20, 30], index=['a', 'b', 'c'])
+s['a']      # по метке
+s.iloc[0]   # позиционно
+s1 + s2     # выравнивание по индексу, NaN для несовпадающих
 ```
-- `s.values` — NumPy-массив значений;
-- `s.index` — объект `Index`;
-- `s['a']` — доступ по метке;
-- `s.iloc[0]` — позиционно;
-- `s[s > 15]` — булева индексация;
-- арифметика по индексу: `s1 + s2` выравнивает по меткам, `NaN` для несовпадающих.
 
 ### DataFrame
-```python
-df = pd.DataFrame({
-    'name': ['Anna', 'Boris', 'Cyril'],
-    'age':  [25, 30, 35],
-    'city': ['Moscow', 'SPB', 'Moscow']
-})
-```
-- `df.index` — индекс строк (по умолчанию `RangeIndex`);
-- `df.columns` — индекс столбцов;
-- `df.dtypes` — типы;
-- `df.values` или `df.to_numpy()` — однородный массив (с приведением типов!);
-- внутри Pandas хранит данные **по столбцам** в виде блоков NumPy (одного `dtype` на блок).
+Двумерный: набор Series-столбцов с общим индексом строк + индекс столбцов.
 
-**Создание**:
-- из dict (как выше);
-- из списка списков с `columns`;
-- `pd.read_csv/read_parquet/read_sql`.
+**Хранение под капотом:** через `BlockManager` — данные хранятся **по столбцам**, столбцы одного `dtype` объединяются в общий NumPy-блок. Поэтому операции по столбцам быстрые (векторизация), по строкам — медленные (`apply(axis=1)`).
+
+**Атрибуты:** `df.index`, `df.columns`, `df.dtypes`, `df.values`, `df.to_numpy()`.
 
 ### Индексация
-Pandas различает **позицию** и **метку**:
-- `df.iloc[0, 1]` — позиция (нулевая строка, первый столбец);
-- `df.loc[0, 'age']` — метка строки и метка столбца;
-- срезы по меткам **включают конец** (`df.loc[1:3]` — строки 1, 2, 3).
+**`.iloc[i, j]`** — позиционная, только целые. Срезы **НЕ включают** правый конец (как обычный Python).
 
-Смешанная и условная:
+**`.loc['a', 'col']`** — по меткам. Срезы **ВКЛЮЧАЮТ** правый конец (особенность Pandas).
+
+```python
+df.iloc[1:3]   # строки 1, 2
+df.loc[1:3]    # строки 1, 2, 3
+```
+
+**Булева и fancy:**
 ```python
 df.loc[df['age'] > 27, ['name', 'city']]
-df.iloc[[0, 2]]                       # fancy
-df.set_index('name')                  # установить столбец как индекс
-df.reset_index()
+df.iloc[[0, 2]]
 ```
 
-**MultiIndex** — иерархический индекс (несколько уровней):
+**`df['col']` vs `df[['col']]`** — первое возвращает Series, второе DataFrame с одним столбцом. Разница важна для последующих операций.
+
+### MultiIndex
+Иерархический индекс (несколько уровней). Для панельных данных, агрегаций по нескольким измерениям:
+
 ```python
-df = df.set_index(['city', 'name'])
-df.loc['Moscow']                      # все строки города
+df.set_index(['city', 'name'])
+df.loc['Moscow']                # все строки города
 df.loc[('Moscow', 'Anna')]
-df.xs('Anna', level='name')           # cross-section по уровню
-df.swaplevel().sort_index()
+df.xs('Anna', level='name')     # cross-section
 ```
 
-**Skinny vs wide**: `pivot`, `pivot_table`, `melt`, `stack`/`unstack` — преобразования между «длинным» и «широким» форматами через MultiIndex.
+Преобразования между длинным и широким форматами: `pivot`, `pivot_table`, `melt`, `stack`/`unstack`.
 
-### Векторизованные операции
-- арифметика и сравнения — поэлементно по меткам;
-- `df['z'] = df['x'] + df['y']` — добавление столбца;
-- `df.apply(f, axis=0/1)` — применить функцию к столбцу/строке;
-- `df.applymap(f)` — поэлементно;
-- `df['col'].map(d)` — замена значений по словарю или функции.
+### GroupBy: Split-Apply-Combine
 
-### GroupBy: split–apply–combine
-**Идея** (Wickham, 2011):
-1. **Split**: разбить DataFrame по значениям ключа.
-2. **Apply**: применить функцию (агрегацию/трансформацию/фильтр) к каждой группе.
-3. **Combine**: объединить результаты обратно.
+Парадигма Wickham (2011):
+1. **Split** — разбить DataFrame по значениям ключа.
+2. **Apply** — применить функцию к каждой группе.
+3. **Combine** — собрать результаты обратно.
 
 ```python
-g = df.groupby('city')
+g = df.groupby('city')   # ленивый, ничего не считает
 ```
-Возвращает `DataFrameGroupBy`. `g.groups` — словарь `{key: indices}`. Не вычисляет ничего, пока не применишь операцию.
 
-**Apply-варианты**:
-- **Aggregation** (`agg`, `aggregate`): уменьшает группу до одной строки.
+### 3 типа apply (главное в билете)
+||Что возвращает|Размер результата|
+|---|---|---|
+|**`agg`**|агрегат|одна строка на группу|
+|**`transform`**|преобразование|как исходный (все строки)|
+|**`filter`**|подмножество групп|меньше, но целыми группами|
+
+**Aggregation** — сжимает группу в одно значение (mean, sum, count, custom):
+
 ```python
 g['age'].mean()
-g.agg({'age': 'mean', 'name': 'count'})
-g.agg(['mean', 'std', 'min', 'max'])
+g.agg({'age': 'mean', 'salary': 'sum'})
+g.agg(avg_age=('age', 'mean'), n=('id', 'count'))  # NamedAgg
 ```
-- **Transformation** (`transform`): возвращает результат той же длины, что и группа (например, нормализация внутри группы).
+
+**Transformation** — для нормализации внутри группы, ранков, кумулятивных операций:
 ```python
-df['age_z'] = g['age'].transform(lambda s: (s - s.mean()) / s.std())
+df['z'] = g['salary'].transform(lambda s: (s - s.mean()) / s.std())
 ```
-- **Filtration** (`filter`): возвращает подмножество групп.
+
+**Filtration** — отбрасывает **группы целиком** по условию, не отдельные строки:
 ```python
 g.filter(lambda d: len(d) >= 10)
 ```
-- **Apply** — общий случай: вернёт что угодно (Series, DataFrame, скаляр), Pandas попытается собрать.
 
-**Группировка по нескольким ключам**:
+**Apply** — общий случай, может вернуть что угодно. Pandas попытается собрать.
+
+### Реализация GroupBy
+- Pandas строит индекс групп через хеширование ключей.
+- Встроенные агрегаты (`mean, sum, count, std, quantile`) — **C/Cython реализация**, очень быстро.
+- `apply` с Python-функцией медленный — Python-цикл по группам.
+
+### Группировка по нескольким ключам
 ```python
 df.groupby(['city', 'gender'])['salary'].mean()
-```
-Получаем Series с MultiIndex (city, gender).
-
-**Custom aggregations**:
-```python
-def range_(s): return s.max() - s.min()
-g['age'].agg(range_)
-g.agg(min_age=('age', 'min'), avg_salary=('salary', 'mean'))   # NamedAgg
+# Series с MultiIndex (city, gender)
 ```
 
-### Реализация split–apply–combine
-- Pandas строит индекс групп (хеширование ключей + индексы);
-- для встроенных агрегатов (`mean`, `sum`, `count`, `min/max`, `std`, `quantile`) — **C-реализация** в Cython, очень быстро;
-- `apply` с произвольной Python-функцией медленнее, потому что Python-цикл по группам;
-- результат собирается в DataFrame/Series с подходящим индексом (по ключам группировки).
-
-### Альтернативы и расширения
-- `pivot_table` — обобщённая агрегация в табличном виде:
-```python
-pd.pivot_table(df, index='city', columns='gender', values='salary', aggfunc='mean')
-```
-- `crosstab` — частоты по двум измерениям.
-- `resample` — group-by по временным интервалам (для DatetimeIndex).
-- `rolling`, `expanding` — оконные операции (не group-by, но related).
+### Связанные операции
+- **`pivot_table`** — обобщённая агрегация в табличном виде с строками/колонками.
+- **`crosstab`** — частоты по двум измерениям.
+- **`resample`** — group-by по временным интервалам (DatetimeIndex).
+- **`rolling`, `expanding`** — оконные операции.
 
 ### Объединение DataFrame'ов
-- `pd.concat([df1, df2], axis=0/1)` — конкатенация.
-- `df1.merge(df2, on='key', how='inner|left|right|outer')` — SQL-стиль join.
-- `df.join(other)` — по индексу.
+||Зачем|
+|---|---|
+|`pd.concat([df1, df2], axis=0/1)`|склейка по оси без ключа|
+|`df1.merge(df2, on='key', how='inner/left/right/outer')`|SQL-style join по столбцу|
+|`df1.join(df2)`|join **по индексу** (не устарел)|
 
-### Пример сквозного потока
+### Векторизованные операции vs apply
 ```python
-import pandas as pd
-df = pd.read_csv("sales.csv", parse_dates=["date"])
-# Чистка
-df = df.dropna(subset=["amount"])
-df["amount"] = df["amount"].astype(float)
-# Производные признаки
-df["month"] = df["date"].dt.to_period("M")
-# GroupBy
-monthly = (
-    df.groupby(["month", "region"])
-      .agg(total_amount=("amount", "sum"),
-           orders=("order_id", "count"),
-           avg_check=("amount", "mean"))
-      .reset_index()
-)
-# Pivot для удобства
-pivot = monthly.pivot(index="month", columns="region", values="total_amount")
+df['z'] = df['x'] + df['y']     # векторизация — быстро
+df.apply(f, axis=0)              # по столбцам, средне
+df.apply(f, axis=1)              # по строкам, медленно (блочное хранение!)
+df['col'].map(d)                 # замена по словарю/функции
 ```
 
 ### Подводные камни
-- `df['col']` возвращает Series; `df[['col']]` — DataFrame с одним столбцом. Разница важна.
-- **SettingWithCopyWarning** — при цепочке индексаций на view легко модифицировать копию вместо оригинала; используйте `.loc` явно.
-- При `apply` на больших данных — медленно. Лучше векторизованные операции / `agg` с встроенными.
-- `groupby` с большими ключами требует памяти — рассмотрите `dask.dataframe` для больших данных.
-- Типы данных: `object` обычно означает Python-объекты (строки, миксы) — медленно. Преобразуйте в `category`/специализированные типы.
+- **SettingWithCopyWarning** — при цепочках индексаций Pandas не гарантирует view; модификация может пройти мимо оригинала. Решение: `df.loc[mask, 'col'] = ...`.
+- **`object` dtype** — обычно Python-объекты (строки, миксы), медленно. Для категориальных — `category`.
+- **`apply` на больших данных** — медленно, лучше векторизация или встроенные `agg`.
+- **Большие groupby по памяти** — рассмотреть `dask.dataframe`.
 
-См. `[[24 Организация массивов в NumPy хранение данных, принципы реализации операций с едиными исходными]]`, `[[22 Организация вычислений с помощью Map Filter Reduce общий принцип и специфика параллельной]]`.
+### Главное на экзамене
+1. **Series и DataFrame** — структура и блочное хранение по столбцам.
+2. **`.loc` vs `.iloc`** — метки vs позиции; правый конец в срезах.
+3. **MultiIndex** — иерархический, для агрегаций.
+4. **Split-Apply-Combine** — парадигма GroupBy.
+5. **3 типа apply** — `agg` (сжимает), `transform` (сохраняет размер), `filter` (отбрасывает группы).
+6. **Объединение** — `concat` (склейка), `merge` (по столбцу), `join` (по индексу).
+7. **SettingWithCopyWarning** — использовать `.loc` явно.

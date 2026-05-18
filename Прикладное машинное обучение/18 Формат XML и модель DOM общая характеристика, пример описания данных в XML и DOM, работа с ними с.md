@@ -1,142 +1,100 @@
 # Формат XML и модель DOM: общая характеристика, пример описания данных в XML и DOM, работа с ними с помощью библиотеки BeautifulSoup.
 
-## TL;DR
-**XML (eXtensible Markup Language)** — текстовый разметочный формат для структурированных данных: элементы, атрибуты, вложенность, обязательная корректность тегов. **DOM (Document Object Model)** — древовидная объектная модель: документ — корень, элементы — внутренние узлы, текст и атрибуты — листья. Загруженный документ полностью держится в памяти, поддерживает навигацию (родитель, дети, соседи), модификацию, поиск (XPath, CSS-селекторы). **BeautifulSoup** — Python-библиотека для разбора HTML/XML; над DOM-моделью даёт удобные методы `find/find_all`, `.parent`, `.children`, CSS-`select`. Хороша для парсинга «грязного» HTML.
+### XML
+**Формат** структурированных данных на основе вложенных тегов. От HTML отличается тем, что:
+- Теги **любые**, придумываешь сам (описывает данные, не отображение).
+- **Строгая** корректность: каждый открывающий тег закрыт, регистрозависимость, обязательное экранирование `<, >, &`.
 
-## Развёрнуто
+**Элементы** (внутри тегов) vs **атрибуты** (в открывающем теге). Атрибуты — для метаданных, элементы — для содержимого.
 
-### XML — общая характеристика
-- Строгая иерархическая структура: каждое начало `<tag>` имеет конец `</tag>` (или самозакрывающееся `<tag/>`).
-- **Элементы** содержат текст и/или другие элементы. **Атрибуты** в открывающем теге: `<book id="1" lang="ru">`.
-- **Корневой элемент** один.
-- Декларация: `<?xml version="1.0" encoding="UTF-8"?>`.
-- Поддержка namespace (`xmlns:prefix=...`), DTD/XSD-схем для валидации, CDATA-секций для вставки текста с спецсимволами.
-- Регистрозависимость, обязательное экранирование `<, >, &, ", '`.
+**Корневой элемент** — один, обёртывает всё.
+**Декларация:** `<?xml version="1.0" encoding="UTF-8"?>`.
 
-XML самодокументируем (теги осмысленны), легко расширяется, читается человеком, хотя многословен. Используется в SOAP, RSS, SVG, конфигах, документообороте, обмене данными между системами.
-
-### Пример XML
+**Пример:**
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
 <library>
   <book id="1" lang="ru">
     <title>Война и мир</title>
-    <author>Толстой Л. Н.</author>
-    <year>1869</year>
-  </book>
-  <book id="2" lang="en">
-    <title>1984</title>
-    <author>Orwell G.</author>
-    <year>1949</year>
+    <author>Толстой</author>
   </book>
 </library>
 ```
+**Где используется:** SOAP, RSS, SVG, конфиги, документооборот, legacy-системы. В современных API чаще JSON (проще, компактнее).
 
-### Модель DOM
-**DOM** — стандартный API для доступа к XML/HTML как к дереву объектов.
+### DOM
+**Document Object Model** — стандартный API доступа к XML/HTML как к **дереву объектов** в памяти.
+**Узлы:** Document (корень), Element (теги), Attr (атрибуты), Text (содержимое), Comment.
 
-**Узлы** (Node):
-- `Document` — корень.
-- `Element` — теги.
-- `Attr` — атрибуты.
-- `Text` — текст внутри элементов.
-- `Comment`, `CDATASection` и др.
+**Навигация:** `.parent`, `.children`, `.next_sibling`, методы поиска по тегу/id/классу.
 
-**Свойства/методы навигации**:
-- `parentNode`, `childNodes`, `firstChild`, `nextSibling`;
-- `getElementById`, `getElementsByTagName`, `getElementsByClassName`;
-- `querySelector`/`querySelectorAll` — CSS-селекторы;
-- `getAttribute`, `setAttribute`.
+**Поиск:**
+- **XPath:** `/library/book[@lang='ru']/title` — путь со условиями. Мощный.
+- **CSS-селекторы:** `book[lang=ru] title` — то же проще.
 
-**Поиск через XPath**: `/library/book[@lang='ru']/title` — выражение пути.
+**Особенность:** документ держится **полностью в памяти**. Для огромных файлов — ограничение.
 
-**Особенности**:
-- Документ загружается **полностью в память** — ограничение для очень больших файлов.
-- Альтернатива — потоковый парсер **SAX/StAX** (события open/close/text).
-- В Python для DOM/потокового парсинга используются `xml.etree.ElementTree`, `lxml`, `xml.dom.minidom`, `xml.sax`.
+### DOM vs SAX
+||DOM|SAX|
+|---|---|---|
+|Структура|дерево в памяти|поток событий через callback'и|
+|Память|весь документ|константа|
+|Навигация|свободная|только вперёд|
+|Размер файла|до сотен МБ|гигабайты|
 
-### Дерево DOM для примера
-```
-Document
-└── library (Element)
-    ├── book id=1 lang=ru (Element)
-    │   ├── title → "Война и мир" (Text)
-    │   ├── author → "Толстой Л. Н."
-    │   └── year → "1869"
-    └── book id=2 lang=en
-        ├── title → "1984"
-        ├── author → "Orwell G."
-        └── year → "1949"
-```
+DOM — для интерактивной работы со средними файлами. SAX — для огромных, когда надо один раз пройти и извлечь.
 
 ### BeautifulSoup
-Библиотека Python для парсинга HTML и XML. Устойчива к битой разметке, удобный API.
 
-**Установка и парсинг**:
+Python-библиотека для парсинга HTML/XML. Зачем нужна:
+1. **Устойчивость к битой разметке** — реальный HTML кривой, стандартные парсеры падают, BS прощает.
+2. **Удобный API** — `soup.find_all("book", lang="ru")` вместо XPath.
+3. **CSS-селекторы** через `.select()`.
+
+**Загрузка:**
 ```python
 from bs4 import BeautifulSoup
-with open("library.xml", encoding="utf-8") as f:
-    soup = BeautifulSoup(f, "xml")  # или "lxml-xml", "html.parser"
+soup = BeautifulSoup(xml_text, "xml")  # или "html.parser", "lxml"
 ```
 
-**Навигация**:
-```python
-soup.library                       # первый <library>
-soup.library.book                  # первый <book>
-soup.find("book", id="1")          # поиск по тегу+атрибутам
-soup.find_all("book")              # все <book>
-soup.select("book[lang=ru] title") # CSS-селектор
-for book in soup.find_all("book"):
-    print(book["id"], book.title.text)
-```
+**Навигация:**
+- `soup.book` — первый `<book>`.
+- `soup.find("book", id="1")` — с фильтром.
+- `soup.find_all("book")` — все.
+- `soup.select("book[lang=ru] title")` — CSS.
 
-**Извлечение данных**:
-- `tag.name` — имя.
-- `tag["attr"]` — значение атрибута; `tag.get("attr")` — с дефолтом.
+**Извлечение:**
+
+- `tag.text` — весь текст внутри.
+- `tag["attr"]` — значение атрибута.
 - `tag.attrs` — словарь атрибутов.
-- `tag.text` (или `.get_text()`) — конкатенация всего текста потомков.
-- `tag.string` — текст, если ровно один Text-потомок.
-- `tag.contents`, `tag.children`, `tag.descendants` — потомки.
-- `tag.parent`, `tag.parents`, `tag.next_sibling`, `tag.previous_sibling`.
 
-**Модификация**:
-```python
-tag["lang"] = "fr"
-tag.string = "новый текст"
-tag.append(soup.new_tag("note", text="комментарий"))
-tag.decompose()  # удалить
-```
+**Иерархия:** `tag.parent`, `tag.children`, `tag.next_sibling`.
 
-**Сохранение**:
-```python
-print(soup.prettify())
-```
+**Модификация:** `tag["lang"] = "fr"`, `tag.string = "..."`, `tag.append(...)`, `tag.decompose()` (удалить).
 
-### Пример: извлечение данных
-```python
-from bs4 import BeautifulSoup
-xml_text = open("library.xml", encoding="utf-8").read()
-soup = BeautifulSoup(xml_text, "xml")
-russian_books = [
-    {"id": b["id"], "title": b.title.text, "author": b.author.text}
-    for b in soup.find_all("book", lang="ru")
-]
-```
+### Когда что брать
+- **HTML, особенно битый** (scraping) — BeautifulSoup.
+- **Строгий XML со схемой** — `lxml.etree` (быстрее, XPath, XSLT, XSD).
+- **Гигантские файлы** — SAX, `xml.sax`, `lxml.iterparse`.
+- **Web scraping**: BeautifulSoup + requests; динамика — Selenium/Playwright.
 
-### Когда использовать что
-- Парсинг **HTML** (особенно битого, реальных страниц): BeautifulSoup + парсер html.parser/lxml.
-- Парсинг **XML** строгого, со схемой: `lxml.etree` (быстрее, поддерживает XPath/XSLT/XSD) или `xml.etree.ElementTree`.
-- **Очень большие** XML: SAX/iterparse — потоковая обработка без загрузки в память.
-- Web scraping: BeautifulSoup + Requests; для динамики — Selenium/Playwright.
-
-### Сравнение XML и JSON
-- XML: атрибуты, namespace, схемы (XSD), вальядация, многословие.
-- JSON: проще, легче, нативен для JS, преобладает в REST API.
-- В современных API JSON чаще, XML остаётся в legacy, документообороте и где нужна строгая валидация.
+### XML vs JSON
+||XML|JSON|
+|---|---|---|
+|Атрибуты|да|нет|
+|Namespace|да|нет|
+|Валидация|XSD|JSON Schema|
+|Размер|многословный|компактный|
+|Где|legacy, документооборот|REST API, веб|
 
 ### Подводные камни
 - BeautifulSoup сам **не поддерживает XPath** — нужен `lxml.etree`.
-- Парсер `html.parser` бывает менее устойчив к ошибкам, чем `lxml`/`html5lib` — проверьте, какой используете.
-- При работе с большими файлами BeautifulSoup съест много памяти; используйте `iterparse`.
-- Кодировки: всегда указывайте при чтении (`encoding="utf-8"`).
-- При экспорте обратно в строку могут «пропасть» декларации/комментарии — проверяйте `prettify`.
+- На больших файлах BS съест память — использовать `iterparse`.
+- Всегда указывать `encoding="utf-8"`.
+- При экспорте обратно могут пропасть декларации/комментарии.
+
+### Главное на экзамене
+1. **XML** — текстовый формат с обязательной вложенностью; элементы vs атрибуты.
+2. **DOM** — древовидная модель документа в памяти; навигация и поиск.
+3. **DOM vs SAX** — дерево vs события; цена памяти.
+4. **BeautifulSoup** — устойчивый парсер HTML/XML с Pythonic API; основные методы `find`, `find_all`, `select`, `tag.text`, `tag["attr"]`.
