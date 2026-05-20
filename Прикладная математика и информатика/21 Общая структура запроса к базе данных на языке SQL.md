@@ -1,89 +1,48 @@
 # Общая структура запроса к базе данных на языке SQL. Основные блоки оператора SELECT. Последовательность выполнения блоков в группировками данных.
 
-## TL;DR
-SQL-запрос — оператор `SELECT`, состоящий из блоков: `SELECT`, `FROM`, `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT/OFFSET`. **Логический порядок выполнения** (важен!): `FROM` → `JOIN`/`ON` → `WHERE` → `GROUP BY` → агрегаты → `HAVING` → `SELECT` → `DISTINCT` → `ORDER BY` → `LIMIT`. Отсюда: алиасы из `SELECT` недоступны в `WHERE`, но доступны в `ORDER BY`. Фильтр строк до агрегации — `WHERE`; после — `HAVING`.
+**Синтаксис SELECT:**
 
-## Развёрнуто
-
-### Полный синтаксис SELECT
 ```sql
-SELECT [DISTINCT | ALL] выражения [AS алиас], ...
-FROM таблица [JOIN ... ON ... | таблица2, ...]
-[WHERE условие]
-[GROUP BY выражения]
-[HAVING условие_над_группами]
-[ORDER BY выражения [ASC|DESC]]
-[LIMIT n [OFFSET m]];
+SELECT [DISTINCT] выражения [AS алиас]
+FROM    таблицы / JOIN-ы
+WHERE   условие
+GROUP BY столбцы
+HAVING  условие_над_группами
+ORDER BY столбцы [ASC|DESC]
+LIMIT   n [OFFSET m];
 ```
 
-### Назначение блоков
+**Логический порядок выполнения (главное в билете):**
 
-**`SELECT`** — список выводимых столбцов и выражений. `*` — все, `DISTINCT` — устранение дубликатов. Алиасы: `expr AS name`.
+$$\text{FROM/JOIN} \to \text{WHERE} \to \text{GROUP BY} \to \text{агрегаты} \to \text{HAVING} \to \text{SELECT} \to \text{DISTINCT} \to \text{ORDER BY} \to \text{LIMIT}.$$
 
-**`FROM`** — источник данных: одна или несколько таблиц, представления, подзапросы, CTE; объединения соединениями (JOIN).
+**Назначение блоков:**
 
-**`WHERE`** — фильтр строк до группировки. Логические операторы `AND, OR, NOT`, сравнения, `IN, BETWEEN, LIKE, IS NULL`, подзапросы (скалярные, `IN`, `EXISTS`).
+- `SELECT` — какие столбцы и выражения возвращать. `DISTINCT` убирает дубли, `AS` — алиасы.
+- `FROM` — источник данных (таблицы, JOIN-ы, подзапросы, CTE).
+- `WHERE` — фильтр строк **до** группировки. Нельзя агрегаты и алиасы из SELECT.
+- `GROUP BY` — группировка по значениям выражений.
+- `HAVING` — фильтр **групп** после агрегирования. Можно агрегаты.
+- `ORDER BY` — сортировка результата. Алиасы из SELECT доступны.
+- `LIMIT n OFFSET m` — пагинация (PostgreSQL/MySQL); в MS SQL — `TOP` или `OFFSET ... FETCH`.
 
-**`GROUP BY`** — группировка строк по значениям выражений. Все элементы `SELECT` должны быть либо в `GROUP BY`, либо агрегатными функциями (`COUNT, SUM, AVG, MIN, MAX` и др.).
+**Следствия из порядка:**
+- Алиасы из `SELECT` недоступны в `WHERE` и `GROUP BY`, но доступны в `ORDER BY` (потому что ORDER BY логически после SELECT).
+- Агрегаты нельзя в `WHERE` — они ещё не вычислены.
+- Столбец, не входящий в `GROUP BY` и не агрегированный, не может стоять в `SELECT`.
 
-**`HAVING`** — фильтр **групп** (после агрегирования). Можно использовать агрегатные функции; для фильтрации до агрегирования — `WHERE`.
+**Агрегатные функции:** Схлопывают много значений в одно. `COUNT(*)`, `COUNT(col)`, `COUNT(DISTINCT col)`, `SUM`, `AVG`, `MIN`, `MAX`, `STDDEV`, `STRING_AGG`. Без `GROUP BY` — по всему набору, с ним — по группам.
 
-**`ORDER BY`** — сортировка результата. Можно по номеру столбца, по алиасу, по нескольким ключам.
+**`COUNT(*)` vs `COUNT(col)` vs `COUNT(DISTINCT col)`:** все строки / непустые значения / уникальные непустые.
 
-**`LIMIT n OFFSET m`** — пагинация (PostgreSQL/MySQL/SQLite); в MS SQL Server `TOP n` или `OFFSET ... FETCH`.
+**NULL — тернарная логика.** NULL = "неизвестное значение". Сравнение с NULL даёт **UNKNOWN** (не TRUE и не FALSE), строка не проходит фильтр. Проверка — `IS NULL` / `IS NOT NULL`, не `= NULL`.
 
-### Логический порядок выполнения
-Хотя пишется в порядке `SELECT...FROM...WHERE...`, СУБД логически исполняет в порядке:
-1. `FROM` + `JOIN ON` — формирование исходного множества строк (декартово произведение + условия соединения).
-2. `WHERE` — фильтр строк.
-3. `GROUP BY` — формирование групп.
-4. Вычисление агрегатных функций.
-5. `HAVING` — фильтр групп.
-6. `SELECT` — вычисление выражений списка вывода.
-7. `DISTINCT` — устранение дубликатов.
-8. `ORDER BY` — сортировка.
-9. `LIMIT/OFFSET` — выборка нужного фрагмента.
+**`LIMIT` без `ORDER BY`** — порядок строк не определён, результат непредсказуем. Почти всегда баг.
 
-**Следствия**:
-- Алиас, заданный в `SELECT`, **не доступен** в `WHERE` и `GROUP BY` (строго по стандарту), но **доступен** в `ORDER BY` (а во многих СУБД и в `GROUP BY/HAVING`).
-- Агрегатные функции нельзя использовать в `WHERE` — они вычисляются после.
-- Колонка, не входящая в `GROUP BY` и не агрегируемая, не может стоять в `SELECT`.
+**Оконные функции** (`OVER (...)`) — агрегаты без коллапса в одну строку: `SUM(x) OVER (PARTITION BY g ORDER BY t)`. Вычисляются в фазе `SELECT`.
 
-### Группировка и агрегация
-Агрегатные функции: `COUNT(*)`, `COUNT(col)`, `COUNT(DISTINCT col)`, `SUM`, `AVG`, `MIN`, `MAX`, `STDDEV`, `VARIANCE`, `STRING_AGG/GROUP_CONCAT`.
-
-С `GROUP BY` агрегаты считаются по группам. Без `GROUP BY` — по всему набору.
-
-Расширения: `GROUP BY ROLLUP/CUBE/GROUPING SETS` — для подытогов.
-
-**Оконные функции** (`OVER (...)`) — агрегаты без коллапса в одну строку: `SUM(x) OVER (PARTITION BY g ORDER BY t)`. Применяются в фазе `SELECT`.
-
-### Пример
-```sql
-SELECT department_id,
-       AVG(salary) AS avg_sal,
-       COUNT(*)    AS cnt
-FROM   employees
-WHERE  hire_date >= '2020-01-01'
-GROUP BY department_id
-HAVING COUNT(*) >= 5
-ORDER BY avg_sal DESC
-LIMIT 10;
-```
-Логика: фильтруем сотрудников, нанятых с 2020-01-01 (`WHERE`); группируем по отделу (`GROUP BY`); оставляем отделы с ≥5 нанятыми (`HAVING`); считаем `SELECT`; сортируем по убыванию средней зарплаты; берём топ-10.
-
-### Категории SQL-операторов (контекст)
-- **DDL** (Data Definition Language): `CREATE, ALTER, DROP, TRUNCATE`.
-- **DML** (Data Manipulation Language): `SELECT, INSERT, UPDATE, DELETE, MERGE`.
-- **DCL** (Data Control Language): `GRANT, REVOKE`.
-- **TCL** (Transaction Control Language): `BEGIN, COMMIT, ROLLBACK, SAVEPOINT`.
-
-Структура запроса, описанная выше, — про оператор `SELECT` (DML).
-
-### Подводные камни
-- В `WHERE` нельзя использовать агрегаты — нужно `HAVING`.
-- `NULL` в сравнениях даёт `UNKNOWN`, а не `FALSE` — `WHERE col = NULL` всегда пусто; нужно `IS NULL`.
-- При `LIMIT` без `ORDER BY` порядок строк не определён.
-- `COUNT(*)` считает все строки, `COUNT(col)` пропускает `NULL`-ы.
-
-См. `[[22 Запросы к базам данных с использованием нескольких таблиц]]`, `[[20 Нормальные формы реляционных отношений]]`.
+**Категории SQL-операторов:**
+- **DDL** (Data Definition) — структура БД: `CREATE`, `ALTER`, `DROP`, `TRUNCATE`.
+- **DML** (Data Manipulation) — данные: `SELECT`, `INSERT`, `UPDATE`, `DELETE`.
+- **DCL** (Data Control) — права: `GRANT`, `REVOKE`.
+- **TCL** (Transaction Control) — транзакции: `BEGIN`, `COMMIT`, `ROLLBACK`.
