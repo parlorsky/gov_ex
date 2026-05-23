@@ -10,13 +10,29 @@
 ### Программа минимум
 
 ```python
-import numpy as np, matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
-rng = np.random.default_rng(0)
-X = np.r_[rng.normal([55,55], 12, (50,2)), rng.normal([75,75], 12, (50,2))]  # 2 класса
-y = np.r_[np.zeros(50), np.ones(50)]
-clf = LogisticRegression().fit(X, y)                                        # линейная граница
-plt.scatter(X[:,0], X[:,1], c=y); print(clf.coef_, clf.intercept_)
+
+# Несколько явных точек: [экзамен 1, экзамен 2].
+X = np.array([
+    [34, 45], [45, 52], [50, 49], [60, 45], [62, 58],
+    [70, 65], [75, 80], [82, 74], [88, 90], [95, 85],
+])
+
+# 0 - Not admitted, 1 - Admitted.
+y = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+model = LogisticRegression()
+model.fit(X, y)
+
+print("коэффициенты:", model.coef_)
+print("свободный член:", model.intercept_)
+print("accuracy:", model.score(X, y))
+
+plt.scatter(X[:, 0], X[:, 1], c=y)
+plt.xlabel("Exam 1")
+plt.ylabel("Exam 2")
 plt.show()
 ```
 

@@ -8,12 +8,29 @@
 ### Программа минимум
 
 ```python
-import numpy as np, pandas as pd
-df = pd.DataFrame({"col1":[1,np.nan,3], "col2":[4,np.nan,6], "col3":["a",None,"a"]})
-print(df.isna().sum())                             # число пропусков по столбцам
-df["col1"] = df["col1"].fillna(df["col1"].mean())  # среднее
-df["col2"] = df["col2"].fillna(df["col2"].median())# медиана
-df["col3"] = df["col3"].fillna(df["col3"].mode()[0]) # мода
+import numpy as np
+import pandas as pd
+
+df = pd.DataFrame({
+    "col1": [1, np.nan, 3],
+    "col2": [4, np.nan, 6],
+    "col3": ["a", None, "a"],
+})
+
+# Считаем пропуски в каждом столбце.
+missing_values = df.isna().sum()
+print(missing_values)
+
+# Готовим значения для заполнения.
+col1_mean = df["col1"].mean()
+col2_median = df["col2"].median()
+col3_mode = df["col3"].mode()[0]
+
+# Заполняем пропуски разными способами.
+df["col1"] = df["col1"].fillna(col1_mean)
+df["col2"] = df["col2"].fillna(col2_median)
+df["col3"] = df["col3"].fillna(col3_mode)
+
 print(df)
 ```
 

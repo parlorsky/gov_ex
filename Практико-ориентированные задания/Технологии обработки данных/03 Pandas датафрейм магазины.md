@@ -10,15 +10,36 @@
 ### Программа минимум
 
 ```python
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
+
 rng = np.random.default_rng(1)
-dates = pd.date_range(pd.Timestamp.today().normalize(), periods=4).repeat([3, 3, 2, 2])  # повторы <= 3
-def make_df():
-    return pd.DataFrame({"Дата": dates, "Магазин": rng.choice(["A","B","C"], 10),
-                         "Город": rng.choice(["Москва","Санкт-Петербург"], 10),
-                         "Выручка": abs(rng.normal(150_000, 25_000, 10))})
-df = pd.concat([make_df(), make_df()], ignore_index=True)        # объединяем 2 таблицы
-print(df.groupby("Магазин")["Выручка"].mean())                   # средняя выручка
+
+today = pd.Timestamp.today().normalize()
+dates = pd.date_range(today, periods=4)
+dates_for_table = dates.repeat([3, 3, 2, 2])  # каждая дата встречается не больше 3 раз
+
+shops = ["A", "B", "C"]
+cities = ["Москва", "Санкт-Петербург"]
+
+df1 = pd.DataFrame({
+    "Дата": dates_for_table,
+    "Магазин": rng.choice(shops, size=10),
+    "Город": rng.choice(cities, size=10),
+    "Выручка": np.abs(rng.normal(150_000, 25_000, size=10)),
+})
+
+df2 = pd.DataFrame({
+    "Дата": dates_for_table,
+    "Магазин": rng.choice(shops, size=10),
+    "Город": rng.choice(cities, size=10),
+    "Выручка": np.abs(rng.normal(150_000, 25_000, size=10)),
+})
+
+df = pd.concat([df1, df2], ignore_index=True)
+average_revenue = df.groupby("Магазин")["Выручка"].mean()
+
+print(average_revenue)
 ```
 
 ### Полное решение

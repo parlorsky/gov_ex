@@ -14,14 +14,34 @@
 ### Программа минимум
 
 ```python
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
+
 rng = np.random.default_rng(1)
-df1 = pd.DataFrame({"report": rng.integers(1, 11, 4), "sales": rng.integers(100, 1001, 4)},
-                   index=["Moscow","Tula","Yaroslavl","Tver"])
-df2 = pd.DataFrame({"report": rng.integers(1, 11, 4), "sales": rng.integers(100, 1001, 4)},
-                   index=["Moscow","Tula","Volgograd","Novgorod"])
-total = df1.add(df2, fill_value=0).astype(int)               # сумма по индексам
-print(total, total.sum(), sep="\n")
+
+index1 = ["Moscow", "Tula", "Yaroslavl", "Tver"]
+index2 = ["Moscow", "Tula", "Volgograd", "Novgorod"]
+
+df1 = pd.DataFrame({
+    "report": rng.integers(1, 11, size=4),
+    "sales": rng.integers(100, 1001, size=4),
+}, index=index1)
+
+df2 = pd.DataFrame({
+    "report": rng.integers(1, 11, size=4),
+    "sales": rng.integers(100, 1001, size=4),
+}, index=index2)
+
+# Складываем таблицы по названиям городов.
+total = df1.add(df2, fill_value=0)
+total = total.astype(int)
+
+total_sales = total["sales"].sum()
+total_reports = total["report"].sum()
+
+print(total)
+print("Сумма продаж:", total_sales)
+print("Сумма отчётов:", total_reports)
 ```
 
 ### Полное решение

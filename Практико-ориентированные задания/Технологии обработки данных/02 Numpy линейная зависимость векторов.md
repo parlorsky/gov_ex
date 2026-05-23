@@ -11,8 +11,22 @@ $$a_1 = (2;\ 5;\ 1;\ 7),\quad a_2 = (-2;\ 2;\ -1;\ 8),\quad a_3 = (0;\ 2;\ 5;\ 4
 
 ```python
 import numpy as np
-A = np.array([[2,5,1,7], [-2,2,-1,8], [0,2,5,4], [-5,4,-1,3]])  # векторы-строки
-print(np.linalg.matrix_rank(A) < A.shape[0])                    # True => зависимы
+
+# Записываем векторы строками матрицы.
+A = np.array([
+    [2, 5, 1, 7],
+    [-2, 2, -1, 8],
+    [0, 2, 5, 4],
+    [-5, 4, -1, 3],
+])
+
+# Если ранг меньше числа векторов, система линейно зависима.
+rank = np.linalg.matrix_rank(A)
+number_of_vectors = A.shape[0]
+is_dependent = rank < number_of_vectors
+
+print("Ранг матрицы:", rank)
+print("Линейно зависимы:", is_dependent)
 ```
 
 ### Полное решение

@@ -8,10 +8,27 @@
 ### Программа минимум
 
 ```python
-from scipy.optimize import brentq
-cf = [-2, 1.4, 1.3]                                      # поток денег по годам
-npv = lambda r: sum(c/(1+r)**t for t, c in enumerate(cf)) # чистый приведённый доход
-print(npv(0.10), brentq(npv, -0.5, 1.5))                  # NPV при 10% и IRR
+cash_flow = [-2.0, 1.4, 1.3]
+
+def npv(rate):
+    total = 0
+    for year in range(len(cash_flow)):
+        total += cash_flow[year] / (1 + rate) ** year
+    return total
+
+left = 0.0
+right = 1.0
+
+for k in range(100):
+    middle = (left + right) / 2
+
+    if npv(left) * npv(middle) <= 0:
+        right = middle
+    else:
+        left = middle
+
+irr = (left + right) / 2
+print(npv(0.10), irr)
 ```
 
 ### Полное решение

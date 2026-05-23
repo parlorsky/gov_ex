@@ -8,13 +8,40 @@
 ### Программа минимум
 
 ```python
-import numpy as np, matplotlib.pyplot as plt
-x = np.linspace(-4, 4, 300); rng = np.random.default_rng(1)
-data = [rng.normal(0,1,10000), rng.uniform(0,1,10000), rng.exponential(1,10000)]  # выборки
-pdfs = [np.exp(-x*x/2)/np.sqrt(2*np.pi), (x>=0)&(x<=1), np.exp(-x)*(x>=0)]       # плотности
-for i in range(3):
-    plt.figure(); plt.hist(data[i], bins=50, density=True, alpha=.5)             # гистограмма
-    plt.plot(x, pdfs[i])                                                         # теория
+import numpy as np
+import matplotlib.pyplot as plt
+
+rng = np.random.default_rng(1)
+n = 10_000
+
+normal_sample = rng.normal(0, 1, n)
+uniform_sample = rng.uniform(0, 1, n)
+exponential_sample = rng.exponential(1, n)
+
+normal_x = np.linspace(-4, 4, 300)
+normal_pdf = np.exp(-(normal_x ** 2) / 2) / np.sqrt(2 * np.pi)
+
+uniform_x = np.linspace(0, 1, 300)
+uniform_pdf = np.ones_like(uniform_x)
+
+exponential_x = np.linspace(0, 8, 300)
+exponential_pdf = np.exp(-exponential_x)
+
+plt.figure()
+plt.hist(normal_sample, bins=50, density=True, alpha=0.5)
+plt.plot(normal_x, normal_pdf)
+plt.title("Нормальное распределение")
+
+plt.figure()
+plt.hist(uniform_sample, bins=50, density=True, alpha=0.5)
+plt.plot(uniform_x, uniform_pdf)
+plt.title("Равномерное распределение")
+
+plt.figure()
+plt.hist(exponential_sample, bins=50, density=True, alpha=0.5)
+plt.plot(exponential_x, exponential_pdf)
+plt.title("Экспоненциальное распределение")
+
 plt.show()
 ```
 
