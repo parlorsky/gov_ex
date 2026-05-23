@@ -1,10 +1,10 @@
 # Организация Pandas DataFrame и организация индексации для DataFrame и Series. Операция GroupBy в Pandas DataFrame и реализация в ней подхода «разбиение, применение и объединение».
 
 ## TL;DR
-- **Организация Pandas DataFrame:** [DataFrame](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#dataframe>) — двумерная таблица из Series-столбцов с общим индексом строк и блочным хранением по столбцам.
-- **Организация индексации для DataFrame и Series:** [индексация](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#индексация>) различает `.loc` по меткам и `.iloc` по позициям; Series и DataFrame выравнивают операции по индексам.
-- **Операция GroupBy в Pandas DataFrame:** [GroupBy](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#groupby-split-apply-combine>) лениво разбивает таблицу по ключам и применяет `agg`, `transform`, `filter` или общий `apply`.
-- **Реализация подхода «разбиение, применение и объединение»:** split-apply-combine сначала строит группы, затем считает функцию по каждой группе и собирает результат обратно; детали реализации описаны в [реализации GroupBy](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#реализация-groupby>).
+- **Организация Pandas DataFrame:** <a href="#dataframe">DataFrame</a> — двумерная таблица из Series-столбцов с общим индексом строк и блочным хранением по столбцам.
+- **Организация индексации для DataFrame и Series:** <a href="#индексация">индексация</a> различает `.loc` по меткам и `.iloc` по позициям; Series и DataFrame выравнивают операции по индексам.
+- **Операция GroupBy в Pandas DataFrame:** <a href="#groupby-split-apply-combine">GroupBy</a> лениво разбивает таблицу по ключам и применяет `agg`, `transform`, `filter` или общий `apply`.
+- **Реализация подхода «разбиение, применение и объединение»:** split-apply-combine сначала строит группы, затем считает функцию по каждой группе и собирает результат обратно; детали реализации описаны в <a href="#реализация-groupby">реализации GroupBy</a>.
 
 ## Развёрнуто
 
@@ -18,12 +18,16 @@ s.iloc[0]   # позиционно
 s1 + s2     # выравнивание по индексу, NaN для несовпадающих
 ```
 
+<a id="dataframe"></a>
+
 #### DataFrame
 Двумерный: набор Series-столбцов с общим индексом строк + индекс столбцов.
 
 **Хранение под капотом:** через `BlockManager` — данные хранятся **по столбцам**, столбцы одного `dtype` объединяются в общий NumPy-блок. Поэтому операции по столбцам быстрые (векторизация), по строкам — медленные (`apply(axis=1)`).
 
 **Атрибуты:** `df.index`, `df.columns`, `df.dtypes`, `df.values`, `df.to_numpy()`.
+
+<a id="индексация"></a>
 
 #### Индексация
 **`.iloc[i, j]`** — позиционная, только целые. Срезы **НЕ включают** правый конец (как обычный Python).
@@ -54,6 +58,8 @@ df.xs('Anna', level='name')     # cross-section
 ```
 
 Преобразования между длинным и широким форматами: `pivot`, `pivot_table`, `melt`, `stack`/`unstack`.
+
+<a id="groupby-split-apply-combine"></a>
 
 #### GroupBy: Split-Apply-Combine
 
@@ -92,6 +98,8 @@ g.filter(lambda d: len(d) >= 10)
 ```
 
 **Apply** — общий случай, может вернуть что угодно. Pandas попытается собрать.
+
+<a id="реализация-groupby"></a>
 
 #### Реализация GroupBy
 - Pandas строит индекс групп через хеширование ключей.
