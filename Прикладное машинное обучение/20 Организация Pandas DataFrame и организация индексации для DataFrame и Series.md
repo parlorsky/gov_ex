@@ -1,10 +1,10 @@
 # Организация Pandas DataFrame и организация индексации для DataFrame и Series. Операция GroupBy в Pandas DataFrame и реализация в ней подхода «разбиение, применение и объединение».
 
 ## TL;DR
-- **Организация Pandas DataFrame:** [DataFrame](#dataframe) — двумерная таблица из Series-столбцов с общим индексом строк и блочным хранением по столбцам.
-- **Организация индексации для DataFrame и Series:** [индексация](#индексация) различает `.loc` по меткам и `.iloc` по позициям; Series и DataFrame выравнивают операции по индексам.
-- **Операция GroupBy в Pandas DataFrame:** [GroupBy](#groupby-split-apply-combine) лениво разбивает таблицу по ключам и применяет `agg`, `transform`, `filter` или общий `apply`.
-- **Реализация подхода «разбиение, применение и объединение»:** split-apply-combine сначала строит группы, затем считает функцию по каждой группе и собирает результат обратно; детали реализации описаны в [реализации GroupBy](#реализация-groupby).
+- **Организация Pandas DataFrame:** [DataFrame](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#dataframe>) — двумерная таблица из Series-столбцов с общим индексом строк и блочным хранением по столбцам.
+- **Организация индексации для DataFrame и Series:** [индексация](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#индексация>) различает `.loc` по меткам и `.iloc` по позициям; Series и DataFrame выравнивают операции по индексам.
+- **Операция GroupBy в Pandas DataFrame:** [GroupBy](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#groupby-split-apply-combine>) лениво разбивает таблицу по ключам и применяет `agg`, `transform`, `filter` или общий `apply`.
+- **Реализация подхода «разбиение, применение и объединение»:** split-apply-combine сначала строит группы, затем считает функцию по каждой группе и собирает результат обратно; детали реализации описаны в [реализации GroupBy](<./20%20%D0%9E%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20Pandas%20DataFrame%20%D0%B8%20%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%D0%BD%D0%B4%D0%B5%D0%BA%D1%81%D0%B0%D1%86%D0%B8%D0%B8%20%D0%B4%D0%BB%D1%8F%20DataFrame%20%D0%B8%20Series.md#реализация-groupby>).
 
 ## Развёрнуто
 
